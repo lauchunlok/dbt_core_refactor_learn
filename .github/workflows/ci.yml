@@ -7,13 +7,15 @@ on:
 jobs:
     CI:
         runs-on: ubuntu-latest
-        environment: dbt-prod
+        environment: dbt-prod # this is github environment
+
         # Skip forks where secrets are unavailable
-        if: github.event_name != 'pull_request' || github.repository == format('{0}/dbt-core_demo-bq', github.repository_owner)
+        # if: github.event_name != 'pull_request' || github.repository == format('{0}/dbt-core_demo-bq', github.repository_owner)
 
         env:
             DBT_PROFILES_DIR: ${{ github.workspace }}/.dbt
             GCP_PROJECT_ID: dbt-core-bq-learn
+            DBT_DATASET: dbt_refactor_learn
             DBT_PROD_KEYFILE: ${{ secrets.DBT_PROD_KEYFILE }}
 
         steps:
@@ -66,7 +68,7 @@ jobs:
                   dbt_core_bigquery:
                     outputs:
                       dev:
-                        dataset: dbt_refactor_learn
+                        dataset: ${{ env.DBT_DATASET }}
                         job_execution_timeout_seconds: 300
                         job_retries: 1
                         keyfile: ${{ github.workspace }}/.dbt/service_account.json

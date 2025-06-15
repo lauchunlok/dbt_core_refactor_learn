@@ -67,7 +67,7 @@ jobs:
                   chmod 600 ${{ github.workspace }}/.dbt/service_account.json
                   # Generate profiles.yml
                   cat <<EOF > ${{ github.workspace }}/.dbt/profiles.yml
-                  ${DBT_PROFILE}:
+                  ${{ env.DBT_PROFILE }}:
                     outputs:
                       dev:
                         dataset: ${{ env.DBT_DATASET }}

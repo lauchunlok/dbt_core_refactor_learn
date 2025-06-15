@@ -32,8 +32,8 @@ final AS (
     , paid_orders.total_amount_paid
     , paid_orders.payment_finalized_date
 
-    , custoemr.customer_first_name
-    , customer.customer_last_name
+    , customers.customer_first_name
+    , customers.customer_last_name
 
     -- sales transaction sequence
     , ROW_NUMBER() over (order by paid_orders.order_id) as transaction_seq

@@ -62,7 +62,7 @@ final AS (
       PARTITION by paid_orders.customer_id order by paid_orders.order_placed_at) as fdos
 
   from paid_orders
-  left join customers on paid_orders.customer_id = customer.customer_id
+  left join customers on paid_orders.customer_id = customers.customer_id
 
 )
 

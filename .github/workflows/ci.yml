@@ -1,0 +1,129 @@
+name: dbt CI
+
+on:
+    pull_request:
+        branches: [main]
+
+jobs:
+    CI:
+        runs-on: ubuntu-latest
+        environment: dbt-prod # this is github environment
+
+        # Skip forks where secrets are unavailable
+        # if: github.event_name != 'pull_request' || github.repository == format('{0}/dbt-core_demo-bq', github.repository_owner)
+
+        env:
+            DBT_PROFILES_DIR: ${{ github.workspace }}/.dbt
+            GCP_PROJECT_ID: dbt-core-bq-learn
+            DBT_DATASET: dbt_refactor_learn
+            DBT_PROD_KEYFILE: ${{ secrets.DBT_PROD_KEYFILE }} # this is Google Key
+
+            DBT_PROFILE: dbt_core_refactor_learn
+
+        steps:
+            # Step 1: Checkout repo
+            - name: Checkout repo
+              uses: actions/checkout@v3
+
+            # Step 2: Set up Python
+            - name: Set up Python
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.11"
+
+            # Step 3: Install dbt and dependencies
+            - name: Install dbt and dependencies
+              run: |
+                  python -m pip install --upgrade pip setuptools wheel
+                  python -m venv dbt_bigquery_venv
+                  source dbt_bigquery_venv/bin/activate
+                  pip install dbt-core==1.9.6 dbt-bigquery==1.9.2 jq
+
+            # Step 4: Debug secret availability
+            - name: Debug secret availability
+
+              run: |
+                  echo "GitHub event: ${{ github.event_name }}"
+                  echo "Repository: ${{ github.repository }}"
+                  echo "Actor: ${{ github.actor }}"
+                  if [ -z "$DBT_PROD_KEYFILE" ]; then
+                    echo "Error: DBT_PROD_KEYFILE is empty"
+                    exit 1
+                  else
+                    echo "DBT_PROD_KEYFILE is set (length: ${#DBT_PROD_KEYFILE})"
+                  fi
+
+            # Step 5: Create .dbt directory and credentials file
+            - name: Create GCP key and profiles.yml
+              run: |
+                  # Create .dbt directory
+                  mkdir -p ${{ github.workspace }}/.dbt
+                  # Write credentials file
+                  echo "${DBT_PROD_KEYFILE}" > ${{ github.workspace }}/.dbt/service_account.json
+                  # Normalize line endings
+                  cat ${{ github.workspace }}/.dbt/service_account.json | tr -d '\r' > ${{ github.workspace }}/.dbt/service_account.json.tmp
+                  mv ${{ github.workspace }}/.dbt/service_account.json.tmp ${{ github.workspace }}/.dbt/service_account.json
+                  # Set permissions
+                  chmod 600 ${{ github.workspace }}/.dbt/service_account.json
+                  # Generate profiles.yml
+                  cat <<EOF > ${{ github.workspace }}/.dbt/profiles.yml
+                  ${DBT_PROFILE}:
+                    outputs:
+                      dev:
+                        dataset: ${{ env.DBT_DATASET }}
+                        job_execution_timeout_seconds: 300
+                        job_retries: 1
+                        keyfile: ${{ github.workspace }}/.dbt/service_account.json
+                        location: US
+                        method: service-account
+                        priority: interactive
+                        project: ${{ env.GCP_PROJECT_ID }}
+                        threads: 1
+                        type: bigquery
+                    target: dev
+                  EOF
+
+            # # Step 6: Debug credentials file
+            # - name: Debug credentials file
+            #   run: |
+            #       echo "Checking credentials file existence and content"
+            #       ls -l ${{ github.workspace }}/.dbt/service_account.json
+            #       echo "First 5 lines of service_account.json (redacted):"
+            #       head -n 5 ${{ github.workspace }}/.dbt/service_account.json
+            #       echo "Validating JSON with jq"
+            #       cat ${{ github.workspace }}/.dbt/service_account.json | jq . || echo "JSON validation failed"
+            #       # Try base64 decoding
+            #       echo "${{ secrets.DBT_PROD_KEYFILE }}" | base64 -d > ${{ github.workspace }}/.dbt/service_account_base64.json 2>/dev/null || echo "Base64 decode failed"
+            #       if [ -s ${{ github.workspace }}/.dbt/service_account_base64.json ]; then
+            #         echo "Base64 decoded file content (first 5 lines):"
+            #         head -n 5 ${{ github.workspace }}/.dbt/service_account_base64.json
+            #         cat ${{ github.workspace }}/.dbt/service_account_base64.json | jq . || echo "Base64 JSON validation failed"
+            #       fi
+
+            # # Step 7: Set up Google Cloud SDK
+            # - name: Set up Google Cloud SDK
+            #   uses: google-github-actions/setup-gcloud@v1
+
+            # # Step 8: Test BigQuery connection
+            # - name: Test BigQuery connection
+            #   run: |
+            #       gcloud auth activate-service-account --key-file=${{ github.workspace }}/.dbt/service_account.json
+            #       bq show --project_id=${{ env.GCP_PROJECT_ID }} ${{ env.GCP_PROJECT_ID }}:dbt_core_clau
+
+            # Step 9: Install dbt project dependencies
+            - name: Install dbt project dependencies
+              run: |
+                  source dbt_bigquery_venv/bin/activate
+                  dbt deps --project-dir=${{ github.workspace }}
+
+            # Step 10: Run dbt debug
+            - name: Run dbt debug
+              run: |
+                  source dbt_bigquery_venv/bin/activate
+                  dbt debug --profiles-dir=${{ env.DBT_PROFILES_DIR }} --target dev
+
+            # Step 11: Run dbt tests
+            - name: Run dbt tests
+              run: |
+                  source dbt_bigquery_venv/bin/activate
+                  dbt build --profiles-dir=${{ env.DBT_PROFILES_DIR }} --target dev --debug

@@ -1,5 +1,5 @@
 SELECT
     id as customer_id,
-    first_name,
-    last_name
+    FIRST_NAME as customer_first_name,
+    LAST_NAME as customer_last_name
 FROM  {{ source('jaffle_shop', 'customers') }}

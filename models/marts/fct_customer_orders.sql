@@ -39,7 +39,7 @@ final AS (
     , ROW_NUMBER() over (order by paid_orders.order_id) as transaction_seq
 
     -- customer sales sequence
-    , ROW_NUMBER() over (PARTITION by paid_orders.customer_id order by paid_orders.order_id) as transaction_seq
+    , ROW_NUMBER() over (PARTITION by paid_orders.customer_id order by paid_orders.order_id) as customer_sales_seq
 
 
     -- new vs. returning customer

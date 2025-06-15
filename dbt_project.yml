@@ -34,3 +34,5 @@ models:
             +materialized: view
         marts:
             +materialized: table
+        legacy:
+            +materialized: view

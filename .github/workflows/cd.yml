@@ -17,6 +17,8 @@ jobs:
             DBT_DATASET: dbt_prod
             DBT_PROD_KEYFILE: ${{ secrets.DBT_PROD_KEYFILE }}
 
+            DBT_PROFILE: dbt_core_refactor_learn
+
         steps:
             # Step 1: Checkout repo
             - name: Checkout repo
@@ -64,7 +66,7 @@ jobs:
                   chmod 600 ${{ github.workspace }}/.dbt/service_account.json
                   # Generate profiles.yml
                   cat <<EOF > ${{ github.workspace }}/.dbt/profiles.yml
-                  dbt_core_bigquery:
+                  ${{ env.DBT_PROFILE }}:
                     outputs:
                       prod:
                         dataset: ${{ env.DBT_DATASET }}

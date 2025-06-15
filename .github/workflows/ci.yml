@@ -16,7 +16,9 @@ jobs:
             DBT_PROFILES_DIR: ${{ github.workspace }}/.dbt
             GCP_PROJECT_ID: dbt-core-bq-learn
             DBT_DATASET: dbt_refactor_learn
-            DBT_PROD_KEYFILE: ${{ secrets.DBT_PROD_KEYFILE }}
+            DBT_PROD_KEYFILE: ${{ secrets.DBT_PROD_KEYFILE }} # this is Google Key
+
+            DBT_PROFILE: dbt_core_refactor_learn
 
         steps:
             # Step 1: Checkout repo
@@ -65,7 +67,7 @@ jobs:
                   chmod 600 ${{ github.workspace }}/.dbt/service_account.json
                   # Generate profiles.yml
                   cat <<EOF > ${{ github.workspace }}/.dbt/profiles.yml
-                  dbt_core_bigquery:
+                  ${DBT_PROFILE}:
                     outputs:
                       dev:
                         dataset: ${{ env.DBT_DATASET }}
